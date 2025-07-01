@@ -1,0 +1,7 @@
+streamlit
+pandas
+textblob
+Pillow
+matplotlib
+openpyxl
+facebook-scraper
