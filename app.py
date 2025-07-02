@@ -1,118 +1,81 @@
 
 import streamlit as st
 import pandas as pd
-import uuid
+import requests
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 import matplotlib.pyplot as plt
 
-st.set_page_config(page_title="PUK AI Dashboard", layout="centered")
-
-# ---- Logo & Header ----
+st.set_page_config(page_title="PUK Election AI Dashboard", layout="centered")
 st.image("logo.png", width=130)
 st.title("PUK AI Dashboard")
 st.markdown("<div style='text-align: right; font-size: 13px; color: gray;'>Prepared by <strong>Shvan Qaraman</strong></div>", unsafe_allow_html=True)
 
-# Language selector (placeholder)
-lang = st.selectbox("🌐 Language / زمان", ["English", "کوردی", "عربي"])
-
-# ---- Login ----
-if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
-
-if not st.session_state.logged_in:
-    with st.form("login"):
-        st.subheader("Login")
-        u = st.text_input("Username")
-        p = st.text_input("Password", type="password")
-        if st.form_submit_button("Login"):
-            if u == "shvan" and p == "shvan1234":
-                st.session_state.logged_in = True
-                st.rerun()
-            else:
-                st.error("Invalid credentials!")
-    st.stop()
-
-# ---- Helper Functions ----
 analyzer = SentimentIntensityAnalyzer()
 PARTIES = ["یەکێتی", "پارتی", "گۆڕان", "کۆمەڵ", "یەکگرتوو", "بەرەی گەل", "هەلوێست"]
 
-@st.cache_data(show_spinner=False)
-def analyze_dataframe(df):
-    # Sentiment
-    sentiments = []
-    for text in df['Comment'].astype(str):
-        score = analyzer.polarity_scores(text)
-        compound = score['compound']
-        if compound >= 0.05:
-            sentiments.append("Positive")
-        elif compound <= -0.05:
-            sentiments.append("Negative")
+def get_post_id_from_share_link(link):
+    import re
+    try:
+        response = requests.get(link, allow_redirects=True)
+        final_url = response.url
+        match = re.search(r"/posts/(\d+)", final_url)
+        if match:
+            return match.group(1)
+        return final_url.split("/")[-1].split("?")[0]
+    except:
+        return None
+
+def fetch_comments(post_id, limit=500):
+    all_comments = []
+    url = f"https://graph.facebook.com/v19.0/{post_id}/comments?access_token=" + ACCESS_TOKEN + "&limit=100"
+    while url and len(all_comments) < limit:
+        r = requests.get(url)
+        if r.status_code != 200:
+            st.error("Error fetching comments from Facebook.")
+            return []
+        data = r.json()
+        comments = [c['message'] for c in data.get('data', []) if 'message' in c]
+        all_comments.extend(comments)
+        paging = data.get('paging', {})
+        url = paging.get('next')
+    return all_comments[:limit]
+
+def analyze_comments(comments):
+    results = []
+    for c in comments:
+        score = analyzer.polarity_scores(c)['compound']
+        sentiment = "Neutral"
+        if score >= 0.05:
+            sentiment = "Positive"
+        elif score <= -0.05:
+            sentiment = "Negative"
+        results.append({"Comment": c, "Sentiment": sentiment})
+    return pd.DataFrame(results)
+
+def count_parties(df):
+    party_counts = {party: df['Comment'].str.contains(party).sum() for party in PARTIES}
+    return party_counts
+
+ACCESS_TOKEN = "EAAQuTsUxpHYBO3VTnECXDzoEZBtgcKxgZBzlJOrgxk0FRawjo4FlE5qPgJZAgg8IYWvcdPduwBEYZCHEIZCs0E1QecYG6bW6yh4N4tUZCS99dVd8k1AnBXlTMPvOw4h0n4nh1HO3d5KYmeZAkqbozvirjRkTZAXJAKbA8woXpJZA6tkplKVf9WUMbMEIzDQajZBptIZBUAiM8GFzwYuCA7yosIYnGrsjJhPEPrzVraT6OfKBo5Bl9jZBYJlBIX53jVDHFFia5OZCyVGT8R1ZBS"
+
+link = st.text_input("Paste Facebook post link")
+if link:
+    with st.spinner("Fetching and analyzing..."):
+        post_id = get_post_id_from_share_link(link)
+        if not post_id:
+            st.error("Could not extract post ID.")
         else:
-            sentiments.append("Neutral")
+            comments = fetch_comments(post_id)
+            if comments:
+                df = analyze_comments(comments)
+                party_counts = count_parties(df)
+                st.success(f"Fetched {len(df)} comments.")
+                st.dataframe(df.head())
 
-    df['Sentiment'] = sentiments
+                st.subheader("Party Mentions")
+                st.bar_chart(pd.DataFrame.from_dict(party_counts, orient='index', columns=['Mentions']))
 
-    # Party counts
-    party_counts = {p: df['Comment'].astype(str).str.contains(p).sum() for p in PARTIES}
-    sentiment_counts = df['Sentiment'].value_counts().to_dict()
-    return df, party_counts, sentiment_counts
+                st.subheader("Sentiment Distribution")
+                st.bar_chart(df['Sentiment'].value_counts())
 
-def render_charts(party_counts, sentiment_counts):
-    st.subheader("Party Mentions (0 - 100K+ Comments)")
-    if party_counts:
-        parties, counts = zip(*party_counts.items())
-        chart_data = pd.DataFrame({"Party": parties, "Mentions": counts})
-        st.bar_chart(chart_data.set_index("Party"))
-
-    st.subheader("Sentiment Distribution")
-    if sentiment_counts:
-        labels, values = zip(*sentiment_counts.items())
-        chart_data = pd.DataFrame({"Sentiment": labels, "Count": values})
-        st.bar_chart(chart_data.set_index("Sentiment"))
-
-# ---- Main Workflow ----
-tab1, tab2 = st.tabs(["Paste Facebook Link", "Upload File"])
-
-with tab1:
-    fb_link = st.text_input("Paste Facebook post link here")
-    if fb_link:
-        st.info("Simulating extraction... Works with up to 100,000 comments.")
-        # Simulate 5 sample comments; replace with real API integration
-        sample_comments = [
-            "پارتی دەبێت لەسەر هەڵوێستی خۆی بیستووری بکات",
-            "من پشتیوانی یەکێتی دەکەم",
-            "بەرەی گەل و هەلوێست دەبن جلوبەرگی نوێ",
-            "گۆڕان هەستی نوێیان پێشکەش کردووە",
-            "یەکگرتوو گرنگە لە هەرێم"
-        ]
-        df = pd.DataFrame({"Comment": sample_comments})
-        analyzed_df, party_counts, sentiment_counts = analyze_dataframe(df)
-        st.success("Analysis complete!")
-        st.dataframe(analyzed_df.head())
-
-        render_charts(party_counts, sentiment_counts)
-
-        # Offer CSV download
-        csv_name = f"{uuid.uuid4().hex[:6]}_comments_analysis.csv"
-        analyzed_df.to_csv(csv_name, index=False)
-        st.download_button("Download CSV", data=analyzed_df.to_csv(index=False), file_name=csv_name, mime="text/csv")
-
-with tab2:
-    up_file = st.file_uploader("Upload CSV or Excel (up to 100,000 comments)", type=["csv", "xlsx", "xls"])
-    if up_file:
-        if up_file.name.endswith(".csv"):
-            df = pd.read_csv(up_file, low_memory=False)
-        else:
-            df = pd.read_excel(up_file)
-        if 'Comment' not in df.columns:
-            df.columns = ['Comment'] + list(df.columns[1:])
-
-        st.info(f"Loaded {len(df):,} comments.")
-        analyzed_df, party_counts, sentiment_counts = analyze_dataframe(df)
-        st.success("Analysis complete!")
-        st.dataframe(analyzed_df.head())
-
-        render_charts(party_counts, sentiment_counts)
-
-        csv_name = f"{uuid.uuid4().hex[:6]}_comments_analysis.csv"
-        st.download_button("Download CSV", data=analyzed_df.to_csv(index=False), file_name=csv_name, mime="text/csv")
+                st.download_button("Download CSV", data=df.to_csv(index=False), file_name="comments_analysis.csv", mime="text/csv")
