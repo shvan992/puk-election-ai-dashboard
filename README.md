@@ -1,1 +1,1 @@
-# Final PUK AI Dashboard with modern login design, logo, language selector, Facebook auto CSV
+# Final V2: Updated logo and footer text (bottom right)

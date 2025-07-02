@@ -6,14 +6,14 @@ from PIL import Image
 
 st.set_page_config(page_title="PUK AI Dashboard", layout="centered")
 
-# Load logo
-st.image("logo.png", width=120)
+# Logo at the top
+st.image("logo.png", width=130)
 st.title("PUK AI Dashboard")
 
-# Language Selector
+# Language selector
 lang = st.selectbox("🌐 Language / زمان", ["English", "کوردی", "عربي"])
 
-# Login form
+# Login system
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 
@@ -34,10 +34,7 @@ if not st.session_state.logged_in:
                 st.error("Invalid username or password.")
     st.stop()
 
-# After login
-st.markdown("### Welcome, Shvan!")
-st.markdown("**Prepared by Shvan**")
-
+# Dashboard main view
 st.subheader("1. Paste Facebook Post Link (Auto Convert to CSV)")
 fb_link = st.text_input("Paste Facebook post link")
 if fb_link:
@@ -80,3 +77,11 @@ if uploaded_file:
             st.write(f"{party}: {count} mentions")
     except Exception as e:
         st.error(f"Error reading file: {e}")
+
+# Footer: bottom-right label
+st.markdown(
+    "<div style='text-align: right; padding-top: 50px; font-size: 13px; color: gray;'>"
+    "Prepared by <strong>Shvan Qaraman</strong>"
+    "</div>",
+    unsafe_allow_html=True
+)
