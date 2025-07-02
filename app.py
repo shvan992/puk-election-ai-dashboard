@@ -6,7 +6,7 @@ from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 import matplotlib.pyplot as plt
 
 st.set_page_config(page_title="PUK Election AI Dashboard", layout="centered")
-st.image("logo.png", width=130)
+st.image("https://upload.wikimedia.org/wikipedia/commons/thumb/f/f3/Patriotic_Union_of_Kurdistan_emblem.svg/1200px-Patriotic_Union_of_Kurdistan_emblem.svg.png", width=130)
 st.title("PUK AI Dashboard")
 st.markdown("<div style='text-align: right; font-size: 13px; color: gray;'>Prepared by <strong>Shvan Qaraman</strong></div>", unsafe_allow_html=True)
 
