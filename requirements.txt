@@ -1,4 +1,6 @@
 streamlit
 pandas
 openpyxl
+vaderSentiment
 Pillow
+matplotlib
