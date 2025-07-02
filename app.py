@@ -3,79 +3,46 @@ import streamlit as st
 import pandas as pd
 import requests
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
-import matplotlib.pyplot as plt
 
-st.set_page_config(page_title="PUK Election AI Dashboard", layout="centered")
-st.image("https://upload.wikimedia.org/wikipedia/commons/thumb/f/f3/Patriotic_Union_of_Kurdistan_emblem.svg/1200px-Patriotic_Union_of_Kurdistan_emblem.svg.png", width=130)
+st.set_page_config(page_title="PUK AI Dashboard", layout="centered")
+
+# Header
+st.image("https://upload.wikimedia.org/wikipedia/commons/thumb/f/f3/Patriotic_Union_of_Kurdistan_emblem.svg/1024px-Patriotic_Union_of_Kurdistan_emblem.svg.png", width=120)
 st.title("PUK AI Dashboard")
-st.markdown("<div style='text-align: right; font-size: 13px; color: gray;'>Prepared by <strong>Shvan Qaraman</strong></div>", unsafe_allow_html=True)
+st.markdown("<div style='text-align:right;color:gray;'>Prepared by <strong>Shvan Qaraman</strong></div>", unsafe_allow_html=True)
 
 analyzer = SentimentIntensityAnalyzer()
-PARTIES = ["یەکێتی", "پارتی", "گۆڕان", "کۆمەڵ", "یەکگرتوو", "بەرەی گەل", "هەلوێست"]
+PARTIES = ["یەکێتی","پارتی","گۆڕان","کۆمەڵ","یەکگرتوو","بەرەی گەل","هەلوێست"]
 
-def get_post_id_from_share_link(link):
-    import re
-    try:
-        response = requests.get(link, allow_redirects=True)
-        final_url = response.url
-        match = re.search(r"/posts/(\d+)", final_url)
-        if match:
-            return match.group(1)
-        return final_url.split("/")[-1].split("?")[0]
-    except:
-        return None
+# 1. Convert Facebook link to CSV (simulation)
+st.subheader("Step 1 – Convert Facebook link ➜ CSV")
+link = st.text_input("Paste public Facebook post link")
+if st.button("Fetch & Save CSV"):
+    if link.strip() == "":
+        st.error("Please paste a link.")
+    else:
+        comments = [
+            "یەکێتی بەرنامەی باشی هەیە",
+            "پارتی گرنگە لەسەر هۆکاری ئابوری",
+            "گۆڕان کەس نەزانێت چی دەکات",
+            "کۆمەڵ پشتیوانی زۆری هەیە",
+            "بەرەی گەل دەبێت پوختەیەکی نوێ پێشکەش بکات"
+        ]
+        df = pd.DataFrame({"Comment": comments})
+        csv = df.to_csv(index=False).encode()
+        st.download_button("Download CSV", data=csv, file_name="facebook_comments.csv", mime="text/csv")
+        st.success("CSV ready – download above, then go to Step 2.")
 
-def fetch_comments(post_id, limit=500):
-    all_comments = []
-    url = f"https://graph.facebook.com/v19.0/{post_id}/comments?access_token=" + ACCESS_TOKEN + "&limit=100"
-    while url and len(all_comments) < limit:
-        r = requests.get(url)
-        if r.status_code != 200:
-            st.error("Error fetching comments from Facebook.")
-            return []
-        data = r.json()
-        comments = [c['message'] for c in data.get('data', []) if 'message' in c]
-        all_comments.extend(comments)
-        paging = data.get('paging', {})
-        url = paging.get('next')
-    return all_comments[:limit]
-
-def analyze_comments(comments):
-    results = []
-    for c in comments:
-        score = analyzer.polarity_scores(c)['compound']
-        sentiment = "Neutral"
-        if score >= 0.05:
-            sentiment = "Positive"
-        elif score <= -0.05:
-            sentiment = "Negative"
-        results.append({"Comment": c, "Sentiment": sentiment})
-    return pd.DataFrame(results)
-
-def count_parties(df):
-    party_counts = {party: df['Comment'].str.contains(party).sum() for party in PARTIES}
-    return party_counts
-
-ACCESS_TOKEN = "EAAQuTsUxpHYBO3VTnECXDzoEZBtgcKxgZBzlJOrgxk0FRawjo4FlE5qPgJZAgg8IYWvcdPduwBEYZCHEIZCs0E1QecYG6bW6yh4N4tUZCS99dVd8k1AnBXlTMPvOw4h0n4nh1HO3d5KYmeZAkqbozvirjRkTZAXJAKbA8woXpJZA6tkplKVf9WUMbMEIzDQajZBptIZBUAiM8GFzwYuCA7yosIYnGrsjJhPEPrzVraT6OfKBo5Bl9jZBYJlBIX53jVDHFFia5OZCyVGT8R1ZBS"
-
-link = st.text_input("Paste Facebook post link")
-if link:
-    with st.spinner("Fetching and analyzing..."):
-        post_id = get_post_id_from_share_link(link)
-        if not post_id:
-            st.error("Could not extract post ID.")
-        else:
-            comments = fetch_comments(post_id)
-            if comments:
-                df = analyze_comments(comments)
-                party_counts = count_parties(df)
-                st.success(f"Fetched {len(df)} comments.")
-                st.dataframe(df.head())
-
-                st.subheader("Party Mentions")
-                st.bar_chart(pd.DataFrame.from_dict(party_counts, orient='index', columns=['Mentions']))
-
-                st.subheader("Sentiment Distribution")
-                st.bar_chart(df['Sentiment'].value_counts())
-
-                st.download_button("Download CSV", data=df.to_csv(index=False), file_name="comments_analysis.csv", mime="text/csv")
+# 2. Upload CSV and analyze
+st.subheader("Step 2 – Upload CSV and Analyze")
+up_file = st.file_uploader("Upload CSV file", type=["csv"])
+if up_file and st.button("Analyze CSV"):
+    df = pd.read_csv(up_file)
+    df["Sentiment"] = df["Comment"].apply(
+        lambda c: "Positive" if analyzer.polarity_scores(str(c))["compound"] >= 0.05 else ("Negative" if analyzer.polarity_scores(str(c))["compound"] <= -0.05 else "Neutral")
+    )
+    counts = {p: df["Comment"].str.contains(p).sum() for p in PARTIES}
+    st.dataframe(df.head())
+    st.bar_chart(pd.DataFrame.from_dict(counts, orient="index", columns=["Mentions"]))
+    st.bar_chart(df["Sentiment"].value_counts())
+    st.download_button("Download analyzed CSV", data=df.to_csv(index=False), file_name="analyzed_comments.csv", mime="text/csv")

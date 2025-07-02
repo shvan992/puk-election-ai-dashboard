@@ -2,4 +2,3 @@ streamlit
 pandas
 vaderSentiment
 requests
-matplotlib
