@@ -27,7 +27,7 @@ if not st.session_state.logged_in:
         if st.form_submit_button("Login"):
             if u == "shvan" and p == "shvan1234":
                 st.session_state.logged_in = True
-                st.experimental_rerun()
+                st.rerun()
             else:
                 st.error("Invalid credentials!")
     st.stop()
