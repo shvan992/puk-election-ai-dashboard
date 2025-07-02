@@ -1,17 +1,8 @@
 
-# PUK Election AI Dashboard (Full Version)
+# PUK Election AI Dashboard with Login + Facebook Link Input
 
-An AI-powered election dashboard to:
-- Detect Kurdish political party mentions in comments/posts
-- Analyze sentiment, topics, and support
-- Convert Facebook links to Excel/CSV
-- Support Kurdish, Arabic, and English
-
-Supported parties include:
-- یەکێتی (PUK)
-- پارتی (KDP)
-- گۆڕان (Gorran)
-- یەکگرتوو (Yakgrtu)
-- کۆمەڵ (Komal)
-- بەرەی گەل (Baray Gal)
-- هەلوێست (Halwest)
+Features:
+- Username/password login (shvan / shvan1234)
+- Upload CSV, Excel, or PDF Facebook post/comment files
+- Facebook post link input field (future use)
+- Kurdish party detection (PUK, KDP, Gorran, Komal, Yakgrtu, Barey Gal, Halwest)
