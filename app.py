@@ -3,6 +3,7 @@ import streamlit as st
 import pandas as pd
 import requests
 import os
+import re
 from urllib.parse import urlparse, parse_qs
 
 st.set_page_config(page_title="PUK Election AI Dashboard", layout="wide")
@@ -78,9 +79,12 @@ def extract_post_id(link):
         elif "/permalink/" in link:
             return link.split("/permalink/")[1].split("/")[0]
         elif "/share/" in link:
-            # Try fallback fetch (as last resort — not always reliable)
             response = requests.get(link, headers={"User-Agent": "Mozilla/5.0"})
-            match = re.search(r'"top_level_post_id":"(\d+)"', response.text)
+            match = re.search(r'"top_level_post_id":"(\\d+)"', response.text)
+            if not match:
+                match = re.search(r'top_level_post_id=(\d+)', response.text)
+            if not match:
+                match = re.search(r'"post_id":"(\d+)"', response.text)
             if match:
                 return match.group(1)
         return None
